@@ -1,0 +1,22 @@
+{
+  "description": "Pipeline to calculate similarity using cosine",
+  "name": "Feature Similarity", 
+  "parameters": [
+    {
+      "regexes": [
+        "^gs:\\/\\/[^\\n\\r]+$"
+      ],
+      "name": "input",
+      "helpText": "Path of the file pattern glob to read from - for example, gs://dataflow-samples/shakespeare/kinglear.txt",
+      "label": "Input Cloud Storage file(s)"
+    },
+    {
+      "regexes": [
+        "^gs:\\/\\/[^\\n\\r]+$"
+      ],
+      "name": "output",
+      "helpText": "Path and filename prefix for writing output files - for example, gs://MyBucket/counts",
+      "label": "Output Cloud Storage file(s)"
+    }
+  ]
+}
