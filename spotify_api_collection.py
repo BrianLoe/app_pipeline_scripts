@@ -120,14 +120,49 @@ class SpotipyScraper:
                 self.result_dict['time_signature'].append(feature['time_signature'])
                 self.result_dict['valence'].append(feature['valence'])
                 
-    def get_playlist(self, playlist_id):
+    def get_playlist(self, playlist_id, update_trending=False, store_artist_ids=False):
         self.result_dict = {
-            
+            'track_id':[],
+            'track_name':[],
+            'track_url':[],
+            'track_preview_url':[],
+            'track_popularity':[],
+            'track_image_url':[],
+            'track_release_year':[],
+            'artist_id':[],
+            'track_rank':[]
         }
-        
         if self.client:
-            playlist_response = self.client.playlist(playlist_id)['tracks']     
-                
+            playlist_response = self.client.playlist(playlist_id)['tracks']['items'] 
+            for rank, track in enumerate(playlist_response):
+                the_track = track['track']
+                self.result_dict['track_preview_url'].append(the_track['preview_url'])
+                self.result_dict['track_id'].append(the_track['id'])
+                self.result_dict['track_name'].append(the_track['name'])
+                self.result_dict['track_url'].append(the_track['external_urls']['spotify'])
+                self.result_dict['track_popularity'].append(the_track['popularity'])
+                if len(the_track['album']['images']) > 0:
+                    idx = int(len(the_track['album']['images'])/2)
+                    self.result_dict['track_image_url'].append(the_track['album']['images'][idx]['url'])
+                else:
+                    self.result_dict['track_image_url'].append(None)
+                precision = the_track['album']['release_date_precision']
+                if precision == 'year':
+                    self.result_dict['track_release_year'].append(the_track['album']['release_date'])
+                else:
+                    self.result_dict['track_release_year'].append(the_track['album']['release_date'].split('-')[0])
+                self.result_dict['artist_id'].append(the_track['artists'][0]['id'])
+                self.result_dict['track_rank'].append(rank+1)
+            temp_resultdict = self.result_dict.copy()
+    
+            del self.result_dict['track_rank']
+            self.post_to_oracledb('tracks')
+            if update_trending:
+                self.result_dict = {key: temp_resultdict[key] for key in ['track_id', 'track_rank']}
+                self.post_to_oracledb('trending')
+            if store_artist_ids:
+                self.artist_ids += self.result_dict['artist_id']
+        
     def get_track_details(self, track_ids, store_artist_ids=False):
         batch = 50
         if self.client:
@@ -204,20 +239,26 @@ class SpotipyScraper:
 load_dotenv()
 # client_secret, client_id = os.getenv("SPOTIPY_CLIENT_SECRET"), os.getenv("SPOTIPY_CLIENT_ID")
 if __name__ == '__main__':
-    data = pd.read_csv('data/artists_temp.csv')
-    artist_ids = data['artist_id'].tolist()[98:]
-    
+    # data = pd.read_csv('data/artists_temp.csv')
+    # artist_ids = data['artist_id'].tolist()[98:]
     collecter = SpotipyScraper(oracle_client_id=os.getenv("ORACLE_CLIENT_ID"), 
-                               oracle_client_secret=os.getenv("ORACLE_CLIENT_SECRET"))
-    
-    # collecter.get_track_details(track_ids, store_artist_ids=True)
+                               oracle_client_secret=os.getenv("ORACLE_CLIENT_SECRET"))  
+    p_id = "6UeSakyzhiEt4NB3UAd6NQ" # Billboard 100
+    # p_id = "37i9dQZEVXbMDoHDwVN2tF" # top50 global playlist id
+    collecter.get_playlist(p_id, store_artist_ids=True) 
+    # for _ in range(10): 
+    #     response = requests.get("https://g9c989a618c1148-spotifydb.adb.ap-sydney-1.oraclecloudapps.com/ords/admin/api/tracks/missing")
+    #     data = response.json()['items']
+    #     track_ids = [d['track_id'] for d in data]
+        
+    #     collecter.get_track_details(track_ids, store_artist_ids=True)
     # collecter.save_to_csv('track_details.csv')
     # collecter.post_to_oracledb('tracks')
     
     # artist_ids = collecter.artist_ids
     
-    collecter.get_artist_details(artist_ids)
-    collecter.save_to_csv('artist_details.csv')
+    collecter.get_artist_details(collecter.artist_ids)
+    # collecter.save_to_csv('artist_details.csv')
     # collecter.post_to_oracledb('artists')
 
 
